@@ -1,2 +1,0 @@
-let f = import "./invalid_function.eyg"
-f({})

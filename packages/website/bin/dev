@@ -1,7 +1,0 @@
-#!/bin/sh
-
-# Run npm install
-npm install
-
-# Pass all arguments to gleam
-gleam "$@"

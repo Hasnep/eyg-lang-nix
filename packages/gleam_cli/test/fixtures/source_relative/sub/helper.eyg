@@ -1,5 +1,0 @@
-{
-  read: (_) -> {
-    perform ReadFile({path: "data.txt", offset: 0, limit: 100})
-  }
-}
