@@ -3,9 +3,11 @@
 
 import eyg/interpreter/break
 import eyg/interpreter/value as v
+import eyg/ir/dag_json
 import gleam/bit_array
-import gleam/dict
+import gleam/function
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/string
 import multiformats/cid/v1
@@ -38,63 +40,76 @@ pub fn describe(reason) {
 
 /// Inspect a value.
 pub fn inspect(value: v.Value(_, _)) -> String {
-  do_inspect(value, 0)
+  json.to_string(do_inspect(value))
 }
 
-fn do_inspect(value: v.Value(_, _), indent: Int) -> String {
-  let indent_str = string.repeat("  ", indent)
+fn do_inspect(value: v.Value(_, _)) -> json.Json {
   case value {
-    v.String(s) -> "\"" <> escape_string(s) <> "\""
-    v.Integer(i) -> int.to_string(i)
+    v.String(s) -> json.object([#("string", json.string(s))])
+    v.Integer(i) -> json.object([#("integer", json.int(i))])
     v.Binary(b) -> {
-      let size = bit_array.byte_size(b)
       let encoded = bit_array.base64_encode(b, True)
-      "Binary(" <> int.to_string(size) <> " bytes): " <> encoded
+      json.object([#("binary", json.string(encoded))])
     }
-    v.Tagged(label, inner) -> {
-      label <> "(" <> do_inspect(inner, indent) <> ")"
-    }
-    v.Record(fields) -> {
-      let items =
-        dict.to_list(fields)
-        |> list.map(fn(pair) {
-          let #(key, val) = pair
-          indent_str <> "  " <> key <> ": " <> do_inspect(val, indent + 1)
-        })
-        |> string.join("\n")
-      "{\n" <> items <> "\n" <> indent_str <> "}"
-    }
-    v.LinkedList(items) -> {
-      case items {
-        [] -> "[]"
-        _ -> {
-          let rendered =
-            items
-            |> list.map(fn(item) {
-              indent_str <> "  " <> do_inspect(item, indent + 1)
-            })
-            |> string.join(",\n")
-          "[\n" <> rendered <> "\n" <> indent_str <> "]"
-        }
-      }
-    }
-    v.Closure(param, _, _) -> "fn(" <> param <> ") -> {...}"
-    v.Partial(func, args) -> {
-      let args_str =
-        args
-        |> list.map(fn(a) { do_inspect(a, indent) })
-        |> string.join(", ")
-      "Partial(" <> string.inspect(func) <> ", " <> args_str <> ")"
-    }
-    v.Promise(_) -> "Promise(...)"
+    v.Tagged(label, inner) ->
+      json.object([
+        #(
+          "tagged",
+          json.object([#("label", json.string(label)), #("", do_inspect(inner))]),
+        ),
+      ])
+    v.Record(fields) ->
+      json.object([
+        #("record", json.dict(fields, function.identity, do_inspect)),
+      ])
+    v.LinkedList(items) ->
+      json.object([#("list", json.array(items, do_inspect))])
+    v.Closure(param, body, env) ->
+      json.object([
+        #(
+          "closure",
+          json.object([
+            #("param", json.string(param)),
+            #("body", dag_json.to_data_model(body)),
+            #(
+              "env",
+              json.object(
+                list.map(env, fn(kv) {
+                  let #(k, v) = kv
+                  #(k, do_inspect(v))
+                }),
+              ),
+            ),
+          ]),
+        ),
+      ])
+    v.Partial(func, args) ->
+      json.object([
+        #(
+          "partial",
+          json.object([
+            #("func", inspect_switch(func)),
+            #("args", json.array(args, of: do_inspect)),
+          ]),
+        ),
+      ])
+    v.Promise(_) -> todo
   }
 }
 
-fn escape_string(s: String) -> String {
-  s
-  |> string.replace("\\", "\\\\")
-  |> string.replace("\"", "\\\"")
-  |> string.replace("\n", "\\n")
-  |> string.replace("\r", "\\r")
-  |> string.replace("\t", "\\t")
+fn inspect_switch(switch: v.Switch(_)) -> json.Json {
+  case switch {
+    v.Cons -> json.object([#("Cons", json.null())])
+    v.Extend(label) -> json.object([#("Extend", json.string(label))])
+    v.Overwrite(label) -> json.object([#("Overwrite", json.string(label))])
+    v.Select(label) -> json.object([#("Select", json.string(label))])
+    v.Tag(label) -> json.object([#("Tag", json.string(label))])
+    v.Match(label) -> json.object([#("Match", json.string(label))])
+    v.NoCases -> json.object([#("NoCases", json.null())])
+    v.Perform(label) -> json.object([#("Perform", json.string(label))])
+    v.Handle(label) -> json.object([#("Handle", json.string(label))])
+    v.Resume(context) -> json.object([#("Resume", context)])
+    v.Builtin(identifier) ->
+      json.object([#("Builtin", json.string(identifier))])
+  }
 }
