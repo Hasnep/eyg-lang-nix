@@ -1,0 +1,4 @@
+.env.eyg
+/build
+/dist
+/node_modules

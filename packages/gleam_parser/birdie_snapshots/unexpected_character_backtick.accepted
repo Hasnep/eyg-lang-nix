@@ -1,0 +1,11 @@
+---
+version: 1.5.5
+title: unexpected character backtick
+file: ./test/eyg/parser/error_test.gleam
+test_name: unexpected_character_test
+---
+error: invalid character '`' at position 1
+hint: remove or replace this character — EYG does not use it
+
+ 1 |  `x
+      ^

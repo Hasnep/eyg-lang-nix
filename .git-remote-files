@@ -1,0 +1,4 @@
+[file "packages" from "https://github.com/CrowdHailer/eyg-lang.git"]
+commit = 724509146af16cbd14cc030fd62418e99586509a
+branch = gleam_cli-v0.0.11
+

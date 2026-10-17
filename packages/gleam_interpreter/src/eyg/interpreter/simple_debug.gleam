@@ -1,0 +1,215 @@
+//// Pretty-printed representation of EYG values.
+////
+//// Output is laid out by `glam` so that small structures collapse onto a
+//// single line and only larger structures break across multiple lines. The
+//// returned string is intended for human consumption — applications that
+//// need machine-readable output should serialise the value themselves.
+
+import eyg/interpreter/break
+import eyg/interpreter/value as v
+import eyg/ir/tree as ir
+import glam/doc.{type Document}
+import gleam/bit_array
+import gleam/dict
+import gleam/int
+import gleam/list
+import gleam/string
+import multiformats/cid/v1
+
+/// Default width used when none is supplied.
+pub const default_width: Int = 80
+
+/// Maximum structural nesting rendered before substructures are elided with
+/// `…`. Error and shell output must stay readable and, crucially, must not
+/// recurse so deeply that the layout overflows the call stack — a recursive
+/// EYG program can build values nested tens of thousands of levels deep.
+const max_depth: Int = 8
+
+/// Describe a reason to stop execution.
+pub fn describe(reason) -> String {
+  case reason {
+    break.UndefinedVariable(var) -> "variable undefined: " <> var
+    break.UndefinedBuiltin(var) -> "builtin undefined: !" <> var
+    break.UndefinedReference(ir.Content(id)) ->
+      "reference undefined: #" <> v1.to_string(id)
+    break.UndefinedReference(ir.Package(package)) ->
+      "package undefined: @" <> package
+    break.UndefinedReference(ir.Version(package, version)) ->
+      "version undefined: @" <> package <> ":" <> int.to_string(version)
+    break.UndefinedReference(ir.Pinned(ir.Release(package, version, _module))) ->
+      "release undefined: @" <> package <> ":" <> int.to_string(version)
+    break.UndefinedReference(ir.Relative(location)) ->
+      "relative location undefined: " <> location
+    break.IncorrectTerm(expected, got) ->
+      "unexpected term, expected: " <> expected <> " got: " <> inspect(got)
+    break.MissingField(field) -> "missing record field: " <> field
+    break.NoMatch(term) -> "no cases matched for: " <> inspect(term)
+    break.NotAFunction(term) -> "function expected got: " <> inspect(term)
+    break.UnhandledEffect("Abort", reason) ->
+      "Aborted with reason: " <> inspect(reason)
+    break.UnhandledEffect(effect, lift) ->
+      "unhandled effect " <> effect <> "(" <> inspect(lift) <> ")"
+    break.Vacant -> "tried to run a todo"
+    break.Unrepresentable(..) -> "integer out of range"
+  }
+}
+
+/// Suggest a possible fix for an execution error.
+pub fn hint(reason) -> String {
+  case reason {
+    break.UndefinedVariable(_) ->
+      "check the variable name or add a `let` binding before it is used"
+    break.UndefinedBuiltin(_) ->
+      "check the builtin name against the builtins reference"
+    break.UndefinedReference(ir.Content(_)) ->
+      "make sure the referenced module is available in the configured package hub"
+    break.UndefinedReference(ir.Package(_))
+    | break.UndefinedReference(ir.Version(_, _))
+    | break.UndefinedReference(ir.Pinned(_)) ->
+      "publish the release or pin the reference to an available module"
+    break.UndefinedReference(ir.Relative(_)) ->
+      "run the program from the directory that contains the relative module"
+    break.IncorrectTerm(_, _) ->
+      "check the value passed to this operation has the expected shape"
+    break.MissingField(_) ->
+      "check the record contains this field before selecting or overwriting it"
+    break.NoMatch(_) ->
+      "add a matching case branch or an otherwise branch for this tag"
+    break.NotAFunction(_) ->
+      "only functions, builtins, and partially applied operations can be called"
+    break.UnhandledEffect("Abort", _) ->
+      "handle the abort effect or avoid performing it in this runtime"
+    break.UnhandledEffect(_, _) ->
+      "handle this effect or run the program in a runtime that supports it"
+    break.Vacant ->
+      "replace the todo with an expression before running the program"
+    break.Unrepresentable(..) ->
+      "on the JavaScript target integers must be within the safe range (-(2^53-1) to 2^53-1)"
+  }
+}
+
+/// Inspect a value at the default width.
+pub fn inspect(value: v.Value(_, _)) -> String {
+  render(value, default_width)
+}
+
+/// Render a value with an explicit line-width budget. A larger width keeps
+/// more on one line; a smaller width causes earlier breaking.
+pub fn render(value: v.Value(_, _), width: Int) -> String {
+  value
+  |> to_doc(0)
+  |> doc.to_string(width)
+}
+
+fn to_doc(value: v.Value(_, _), depth: Int) -> Document {
+  case depth >= max_depth {
+    // Too deep to render in full — elide the remaining structure. This bounds
+    // both the output size and the layout recursion, so an arbitrarily deep
+    // value can no longer hang the renderer or overflow the stack.
+    True -> doc.from_string("…")
+    False ->
+      case value {
+        v.String(s) -> doc.from_string("\"" <> escape_string(s) <> "\"")
+        v.Integer(i) -> doc.from_string(int.to_string(i))
+        v.Binary(b) -> binary_doc(b)
+        v.Tagged(label, inner) ->
+          doc.from_string(label)
+          |> doc.append(wrap("(", to_doc(inner, depth + 1), ")"))
+        v.Record(fields) -> record_doc(fields, depth)
+        v.LinkedList(items) -> list_doc(items, depth)
+        v.Closure(param, _, _) -> doc.from_string("fn(" <> param <> ") { ... }")
+        v.Partial(func, args) -> partial_doc(func, args, depth)
+      }
+  }
+}
+
+fn binary_doc(b: BitArray) -> Document {
+  let size = bit_array.byte_size(b)
+  let encoded = bit_array.base64_encode(b, True)
+  doc.from_string("Binary(" <> int.to_string(size) <> " bytes): " <> encoded)
+}
+
+fn record_doc(fields, depth: Int) -> Document {
+  case dict.is_empty(fields) {
+    True -> doc.from_string("{}")
+    False -> {
+      let entries =
+        dict.to_list(fields)
+        |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
+        |> list.map(fn(pair) {
+          let #(key, value) = pair
+          doc.from_string(key <> ": ")
+          |> doc.append(to_doc(value, depth + 1))
+        })
+      separated(entries, "{", "}")
+    }
+  }
+}
+
+fn list_doc(items: List(v.Value(_, _)), depth: Int) -> Document {
+  case items {
+    [] -> doc.from_string("[]")
+    _ ->
+      separated(list.map(items, fn(item) { to_doc(item, depth + 1) }), "[", "]")
+  }
+}
+
+fn partial_doc(func, args: List(v.Value(_, _)), depth: Int) -> Document {
+  let head = doc.from_string(string.inspect(func))
+  case func, args {
+    // TODO render the remaining switch branches, remove string.inspect
+    // choice of `.field` of `(x) -> { x.field }` for partials without parser representation
+    v.Tag(label), [] -> doc.from_string(label)
+    _, [] -> wrap("Partial(", head, ")")
+    _, _ -> {
+      let parts = [head, ..list.map(args, fn(arg) { to_doc(arg, depth + 1) })]
+      let inner =
+        parts
+        |> doc.join(with: doc.concat([doc.from_string(","), doc.space]))
+      wrap("Partial(", inner, ")")
+    }
+  }
+}
+
+/// Wrap a single document between an opening and closing string. Used when
+/// the contents have already been laid out (eg. nested Tagged values).
+fn wrap(open: String, inner: Document, close: String) -> Document {
+  doc.concat([
+    doc.from_string(open),
+    doc.soft_break
+      |> doc.append(inner)
+      |> doc.nest(by: 2),
+    doc.soft_break,
+    doc.from_string(close),
+  ])
+  |> doc.group
+}
+
+/// Lay out a list of items between delimiters. When the contents fit on the
+/// current line they appear on one line separated by ", "; otherwise each
+/// item appears on its own indented line with a trailing comma.
+fn separated(items: List(Document), open: String, close: String) -> Document {
+  let separator = doc.break(", ", ",")
+  let body = doc.join(items, with: separator)
+  let inner =
+    doc.soft_break
+    |> doc.append(body)
+    |> doc.nest(by: 2)
+
+  doc.concat([
+    doc.from_string(open),
+    inner,
+    doc.break("", ","),
+    doc.from_string(close),
+  ])
+  |> doc.group
+}
+
+fn escape_string(s: String) -> String {
+  s
+  |> string.replace("\\", "\\\\")
+  |> string.replace("\"", "\\\"")
+  |> string.replace("\n", "\\n")
+  |> string.replace("\r", "\\r")
+  |> string.replace("\t", "\\t")
+}

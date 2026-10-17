@@ -1,0 +1,478 @@
+{
+  lib,
+  newScope,
+  beamPackages,
+  buildGleam,
+  fetchgit,
+}:
+
+let
+  inherit (beamPackages) buildMix buildRebar3 fetchHex;
+in
+
+lib.makeScope newScope (self: {
+  base32 = buildRebar3 {
+    name = "base32";
+    version = "1.0.0";
+    otpApplication = "base32";
+
+    src = fetchHex {
+      pkg = "base32";
+      version = "1.0.0";
+      sha256 = "sha256-BEkoU0jtDEzYPHGY52xf1aBFHE7xhpW5/UN5KlA+VRo=";
+    };
+  };
+
+  castor = buildGleam {
+    name = "castor";
+    version = "2.1.0";
+    otpApplication = "castor";
+
+    src = fetchHex {
+      pkg = "castor";
+      version = "2.1.0";
+      sha256 = "sha256-02WWgKv+gWNOJ0eUeUMe1m/EPyVH/bQfDprN55jNSxM=";
+    };
+
+    beamDeps = with self; [
+      gleam_json
+      gleam_stdlib
+      non_empty_list
+      oas_generator_utils
+    ];
+  };
+
+  dag_json = buildGleam {
+    name = "dag_json";
+    version = "3.0.0";
+    otpApplication = "dag_json";
+
+    src = fetchHex {
+      pkg = "dag_json";
+      version = "3.0.0";
+      sha256 = "sha256-Y9tAdcKQkteiL7NqAXdOVqbhpieIx/2ocxFVRq4QZOI=";
+    };
+
+    beamDeps = with self; [
+      gleam_json
+      gleam_stdlib
+      multiformats
+    ];
+  };
+
+  eyg_analysis = buildGleam {
+    name = "eyg_analysis";
+    version = "3.0.1";
+    otpApplication = "eyg_analysis";
+
+    src = ../gleam_analysis;
+
+    beamDeps = with self; [
+      eyg_ir
+      eyg_parser
+      glam
+      gleam_stdlib
+      multiformats
+    ];
+  };
+
+  eyg_interpreter = buildGleam {
+    name = "eyg_interpreter";
+    version = "8.0.2";
+    otpApplication = "eyg_interpreter";
+
+    src = ../gleam_interpreter;
+
+    beamDeps = with self; [
+      eyg_ir
+      glam
+      gleam_javascript
+      gleam_json
+      gleam_stdlib
+      multiformats
+    ];
+  };
+
+  eyg_ir = buildGleam {
+    name = "eyg_ir";
+    version = "3.2.0";
+    otpApplication = "eyg_ir";
+
+    src = ../gleam_ir;
+
+    beamDeps = with self; [
+      dag_json
+      filepath
+      gbor
+      gleam_json
+      gleam_stdlib
+      gleb128
+      midas
+      multiformats
+    ];
+  };
+
+  eyg_parser = buildGleam {
+    name = "eyg_parser";
+    version = "0.5.2";
+    otpApplication = "eyg_parser";
+
+    src = ../gleam_parser;
+
+    beamDeps = with self; [
+      eyg_ir
+      gleam_stdlib
+      multiformats
+    ];
+  };
+
+  filepath = buildGleam {
+    name = "filepath";
+    version = "1.1.2";
+    otpApplication = "filepath";
+
+    src = fetchHex {
+      pkg = "filepath";
+      version = "1.1.2";
+      sha256 = "sha256-sGqa8L8Q5RQB1kuY5LYn8dLkjBVJZ9p69NCRR4Cm1Ao=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  gbor = buildGleam {
+    name = "gbor";
+    version = "1.0.0";
+    otpApplication = "gbor";
+
+    src = fetchgit {
+      url = "https://github.com/hasnep/gbor.git";
+      rev = "44ae26967ebac0c79e40504b457041664545f4b4";
+      hash = "sha256-YcIL15zs6iWXM3YThSP4mB1XsqH8Y6b9z57fIpXEegU=";
+    };
+
+    beamDeps = with self; [
+      gleam_erlang
+      gleam_stdlib
+      ieee_float
+    ];
+  };
+
+  glam = buildGleam {
+    name = "glam";
+    version = "2.0.4";
+    otpApplication = "glam";
+
+    src = fetchHex {
+      pkg = "glam";
+      version = "2.0.4";
+      sha256 = "sha256-SKBDoSCR+T2RHDFt2Pf/0DzZ/29QhI/FbjWdPBaN8Po=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  gleam_erlang = buildGleam {
+    name = "gleam_erlang";
+    version = "1.3.0";
+    otpApplication = "gleam_erlang";
+
+    src = fetchHex {
+      pkg = "gleam_erlang";
+      version = "1.3.0";
+      sha256 = "sha256-ESStOqIRQ+WvD8XPPZUp9tuMoD5DpVcRtgtrezh0N1w=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  gleam_http = buildGleam {
+    name = "gleam_http";
+    version = "4.5.0";
+    otpApplication = "gleam_http";
+
+    src = fetchHex {
+      pkg = "gleam_http";
+      version = "4.5.0";
+      sha256 = "sha256-ONflaYdZ1E8hQ282Uln3AVEE9vr6Ixgc0LK7Dltnvis=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+      splitter
+    ];
+  };
+
+  gleam_javascript = buildGleam {
+    name = "gleam_javascript";
+    version = "1.0.1";
+    otpApplication = "gleam_javascript";
+
+    src = fetchHex {
+      pkg = "gleam_javascript";
+      version = "1.0.1";
+      sha256 = "sha256-1ULEtPQOlC9dM3LVJEGfpSGnu5LWIa9pbMKG6J2ILVU=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  gleam_json = buildGleam {
+    name = "gleam_json";
+    version = "3.1.0";
+    otpApplication = "gleam_json";
+
+    src = fetchHex {
+      pkg = "gleam_json";
+      version = "3.1.0";
+      sha256 = "sha256-RP2qiEe+j8SMp6HAiXBr1UutzExFsjepku3fnyzbKDY=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  gleam_stdlib = buildGleam {
+    name = "gleam_stdlib";
+    version = "1.0.5";
+    otpApplication = "gleam_stdlib";
+
+    src = fetchHex {
+      pkg = "gleam_stdlib";
+      version = "1.0.5";
+      sha256 = "sha256-zuW2wHaoW0X2DFhfQxbGPsi3EnwRnVc4w5WKnE1QQE4=";
+    };
+  };
+
+  gleam_time = buildGleam {
+    name = "gleam_time";
+    version = "1.11.0";
+    otpApplication = "gleam_time";
+
+    src = fetchHex {
+      pkg = "gleam_time";
+      version = "1.11.0";
+      sha256 = "sha256-OreJw+1Oud2nKD9Gw8+DpUh8nPt5DcP/j4rLW/e3psE=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  gleb128 = buildGleam {
+    name = "gleb128";
+    version = "4.0.0";
+    otpApplication = "gleb128";
+
+    src = fetchHex {
+      pkg = "gleb128";
+      version = "4.0.0";
+      sha256 = "sha256-FSu/neur6ujUt0PTH3YRpq4KH3kkuL/OnOznc8UoC3c=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  gleeunit = buildGleam {
+    name = "gleeunit";
+    version = "1.11.0";
+    otpApplication = "gleeunit";
+
+    src = fetchHex {
+      pkg = "gleeunit";
+      version = "1.11.0";
+      sha256 = "sha256-7DGrp0JWrqUx7fgWmTHXdbuzhP7QqKG9xN2TVOPiGCY=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  ieee_float = buildGleam {
+    name = "ieee_float";
+    version = "2.0.2";
+    otpApplication = "ieee_float";
+
+    src = fetchHex {
+      pkg = "ieee_float";
+      version = "2.0.2";
+      sha256 = "sha256-bxEhzEy0Nn9kOsoEX5HORbxUhcrVBB6Rc1+SXDoHje4=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  julienne = buildGleam {
+    name = "julienne";
+    version = "1.1.1";
+    otpApplication = "julienne";
+
+    src = fetchHex {
+      pkg = "julienne";
+      version = "1.1.1";
+      sha256 = "sha256-fvcJW7A8PAgHzRXiHGIENvTbD5ojp3ggakeCAqWfNvo=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  midas = buildGleam {
+    name = "midas";
+    version = "3.1.0";
+    otpApplication = "midas";
+
+    src = fetchHex {
+      pkg = "midas";
+      version = "3.1.0";
+      sha256 = "sha256-kYC2J4UrVB6vH8jUJYZzA0IKQq7UOu6JiR/0e3S7ZWk=";
+    };
+
+    beamDeps = with self; [
+      gleam_http
+      gleam_json
+      gleam_stdlib
+    ];
+  };
+
+  multiformats = buildGleam {
+    name = "multiformats";
+    version = "4.0.0";
+    otpApplication = "multiformats";
+
+    src = fetchHex {
+      pkg = "multiformats";
+      version = "4.0.0";
+      sha256 = "sha256-SNKQlWpvIQhu6cDCtprK9dwAZ+5+RgWZBEXlvchbeq4=";
+    };
+
+    beamDeps = with self; [
+      base32
+      gleam_javascript
+      gleam_stdlib
+      gleb128
+    ];
+  };
+
+  non_empty_list = buildGleam {
+    name = "non_empty_list";
+    version = "2.3.0";
+    otpApplication = "non_empty_list";
+
+    src = fetchHex {
+      pkg = "non_empty_list";
+      version = "2.3.0";
+      sha256 = "sha256-BvnTrHUc94U61dJLgTnOsw5C2Hmd6NSflmphl98LAcw=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  oas_generator_utils = buildGleam {
+    name = "oas_generator_utils";
+    version = "1.1.0";
+    otpApplication = "oas_generator_utils";
+
+    src = fetchHex {
+      pkg = "oas_generator_utils";
+      version = "1.1.0";
+      sha256 = "sha256-VP6L1jitFJupQ63QqKZuVJsiiDKKs+v3ZNUoBaBB6pY=";
+    };
+
+    beamDeps = with self; [
+      gleam_http
+      gleam_javascript
+      gleam_json
+      gleam_stdlib
+    ];
+  };
+
+  ogre = buildGleam {
+    name = "ogre";
+    version = "1.3.0";
+    otpApplication = "ogre";
+
+    src = fetchHex {
+      pkg = "ogre";
+      version = "1.3.0";
+      sha256 = "sha256-xLb+Yj6a/Ca+Cy1atZ6Qfs0bWAEgOeS0u2fVoosl45I=";
+    };
+
+    beamDeps = with self; [
+      gleam_http
+      gleam_stdlib
+    ];
+  };
+
+  overlay_llm = buildGleam {
+    name = "overlay_llm";
+    version = "0.2.0";
+    otpApplication = "overlay_llm";
+
+    src = ../overlay_llm;
+
+    beamDeps = with self; [
+      castor
+      gleam_http
+      gleam_json
+      gleam_stdlib
+      midas
+      oas_generator_utils
+      ogre
+    ];
+  };
+
+  splitter = buildGleam {
+    name = "splitter";
+    version = "1.3.0";
+    otpApplication = "splitter";
+
+    src = fetchHex {
+      pkg = "splitter";
+      version = "1.3.0";
+      sha256 = "sha256-jxSFMG4NWRaKOeEu2IRPn2FuxZw8Y6/P2uBNvWhpDLw=";
+    };
+
+    beamDeps = with self; [
+      gleam_stdlib
+    ];
+  };
+
+  touch_grass = buildGleam {
+    name = "touch_grass";
+    version = "0.4.3";
+    otpApplication = "touch_grass";
+
+    src = ../touch_grass;
+
+    beamDeps = with self; [
+      eyg_analysis
+      eyg_interpreter
+      eyg_ir
+      gleam_http
+      gleam_stdlib
+      gleam_time
+      julienne
+      multiformats
+      ogre
+    ];
+  };
+})

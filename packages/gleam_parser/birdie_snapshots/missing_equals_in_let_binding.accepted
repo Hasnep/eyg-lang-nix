@@ -1,0 +1,11 @@
+---
+version: 1.5.5
+title: missing equals in let binding
+file: ./test/eyg/parser/error_test.gleam
+test_name: missing_equals_test
+---
+error: expected `=` after let binding name at position 6
+hint: let bindings use the form `let name = expression`, names are lower snake_case such as `star_count`
+
+ 1 | let x 5
+           ^
